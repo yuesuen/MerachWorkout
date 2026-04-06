@@ -2,6 +2,7 @@
 // 训练计划常量 — 与 merach_combined.py 保持一致
 
 import Foundation
+import UIKit
 
 // MARK: - 椭圆机参数
 let kStrideLength: Double = 0.47   // 步距 47 cm
