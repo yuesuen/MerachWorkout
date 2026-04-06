@@ -31,7 +31,12 @@ jobs:
           done
 
       - name: Generate Xcode project
-        run: xcodegen generate
+        run: |
+          xcodegen generate
+          # xcodegen latest generates objectVersion=77 (Xcode 16 format)
+          # Patch it down to 56 so Xcode 15.4 can open it
+          sed -i '' 's/objectVersion = 77/objectVersion = 56/' MerachWorkout.xcodeproj/project.pbxproj
+          grep "objectVersion" MerachWorkout.xcodeproj/project.pbxproj
 
       - name: Build (unsigned — 越狱设备用 AppSync 安装无需签名)
         run: |
