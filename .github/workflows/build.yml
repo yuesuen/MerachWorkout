@@ -7,23 +7,14 @@ on:
 
 jobs:
   build:
-    runs-on: macos-13
+    runs-on: macos-14
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Show available Xcode versions
-        run: ls /Applications/ | grep Xcode
-
-      - name: Select Xcode 13.4.1 (if available), else use default
-        run: |
-          if [ -d "/Applications/Xcode_13.4.1.app" ]; then
-            sudo xcode-select -s /Applications/Xcode_13.4.1.app/Contents/Developer
-          else
-            echo "Xcode 13.4.1 not found, using default:"
-          fi
-          xcodebuild -version
+      - name: Show Xcode version
+        run: xcodebuild -version
 
       - name: Install xcodegen
         run: brew install xcodegen
