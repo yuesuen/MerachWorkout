@@ -280,8 +280,9 @@ extension WorkoutEngine: CBPeripheralDelegate {
         guard cpCharacteristic != nil else { return }
 
         // 请求控制权
-        cpCompletion = { [weak self] ok in
-            guard let self = self, ok else { return }
+        cpCompletion = { [weak self] _ in
+            // 不管控制权是否获取成功都继续（部分设备不响应 REQUEST_CONTROL）
+            guard let self = self else { return }
             self.isConnected = true
             self.delegate?.engineDidConnect()
             self.tickLastDate = Date()
@@ -290,7 +291,8 @@ extension WorkoutEngine: CBPeripheralDelegate {
             self.startWorkout()
         }
         peripheral.writeValue(Data([0x00]), for: cpCharacteristic!, type: .withResponse)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
+        // 2 秒后若无响应也直接继续
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
             guard let self = self, let comp = self.cpCompletion else { return }
             self.cpCompletion = nil
             comp(false)
