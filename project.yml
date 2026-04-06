@@ -2,7 +2,7 @@ name: MerachWorkout
 options:
   deploymentTarget:
     iOS: "12.0"
-  xcodeVersion: "13.4"
+  xcodeVersion: "15.4"
   defaultConfig: Release
 
 targets:
