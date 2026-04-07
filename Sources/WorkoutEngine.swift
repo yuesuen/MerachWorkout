@@ -57,7 +57,6 @@ class WorkoutEngine: NSObject {
     private(set) var phaseTotal:   Int    = 0
 
     // ── 内部状态 ──────────────────────────────
-    private var spmWindow:      [Int]  = []
     private var tickTimer:      Timer?
     private var phaseTimer:     Timer?
     private var phaseStartDate: Date?
@@ -98,14 +97,10 @@ class WorkoutEngine: NSObject {
         }
         tickLastDate = now
 
-        let rawSpm = currentData.spm
-        spmWindow.append(rawSpm)
-        if spmWindow.count > 5 { spmWindow.removeFirst() }
-        let nonZero = spmWindow.filter { $0 > 0 }
-        let spm = nonZero.isEmpty ? 0 : Int(round(Double(nonZero.reduce(0, +)) / Double(nonZero.count)))
+        let spm = currentData.spm
 
-        if rawSpm > 0 {
-            let steps = Double(rawSpm) * 2.0 / 60.0 * dt
+        if spm > 0 {
+            let steps = Double(spm) * 2.0 / 60.0 * dt
             totalSteps += steps
             totalDistM += steps * kStrideLength
         }
