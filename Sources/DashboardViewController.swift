@@ -1,14 +1,17 @@
 // DashboardViewController.swift
-// iPhone 6s 横屏布局：单顶栏（5块）+ 2行×3列数值方格 + 底部留空28pt + 长按停止
+// 横屏训练界面：单顶栏 + 2×3方格 + 长按3秒停止按钮
 
 import UIKit
 
 class DashboardViewController: UIViewController {
 
-    // MARK: - Engine（由外部传入）
+    // MARK: - Init
     private let engine: WorkoutEngine
-    init(engine: WorkoutEngine) {
+    private let plan:   WorkoutPlanConfig
+
+    init(engine: WorkoutEngine, plan: WorkoutPlanConfig) {
         self.engine = engine
+        self.plan   = plan
         super.init(nibName: nil, bundle: nil)
     }
     required init?(coder: NSCoder) { fatalError() }
@@ -18,8 +21,7 @@ class DashboardViewController: UIViewController {
     private let topBarColor = UIColor(hex: "#0d1b2a")
 
     // MARK: - Top bar
-    private let topBar = UIView()
-
+    private let topBar          = UIView()
     private let lblElapsedTitle = makeLabel("已用时",  size: 10, color: "#888888")
     private let lblElapsed      = UILabel()
     private let lblResistTitle  = makeLabel("阻力",    size: 10, color: "#888888")
@@ -34,7 +36,7 @@ class DashboardViewController: UIViewController {
     private let lblRemain       = UILabel()
     private var dividers: [UIView] = []
 
-    // MARK: - Metric boxes
+    // MARK: - Metric boxes (row0: SPM|Speed|Power  row1: Steps|Pace|Cal)
     private let boxSPM   = MetricBox(label: "SPM",      unit: "steps/min", color: UIColor(hex: "#00d4ff"))
     private let boxSpeed = MetricBox(label: "Speed",    unit: "km/h",      color: UIColor(hex: "#00ff88"))
     private let boxPower = MetricBox(label: "Power",    unit: "W",         color: UIColor(hex: "#ff6b6b"))
@@ -85,14 +87,14 @@ class DashboardViewController: UIViewController {
         lblPhaseName.font = UIFont.boldSystemFont(ofSize: 13)
         lblPhaseName.textColor = .white; lblPhaseName.text = "--"
 
-        lblPhaseRes.font = UIFont.systemFont(ofSize: 10)
-        lblPhaseRes.textColor = UIColor(hex: "#ffeb3b")
-        lblPhaseRes.backgroundColor = UIColor(hex: "#1a1a2e")
-        lblPhaseRes.layer.cornerRadius = 3; lblPhaseRes.layer.masksToBounds = true
-        lblPhaseRes.textAlignment = .center; lblPhaseRes.text = "R--"
+        lblPhaseRes.font                = UIFont.systemFont(ofSize: 10)
+        lblPhaseRes.textColor           = UIColor(hex: "#ffeb3b")
+        lblPhaseRes.backgroundColor     = UIColor(hex: "#1a1a2e")
+        lblPhaseRes.layer.cornerRadius  = 3; lblPhaseRes.layer.masksToBounds = true
+        lblPhaseRes.textAlignment       = .center; lblPhaseRes.text = "R--"
 
         lblPhaseIdx.font = UIFont.systemFont(ofSize: 10)
-        lblPhaseIdx.textColor = UIColor(hex: "#888888"); lblPhaseIdx.text = "0 / 9"
+        lblPhaseIdx.textColor = UIColor(hex: "#888888"); lblPhaseIdx.text = "0 / 0"
 
         lblPhaseCD.font = UIFont.monospacedDigitSystemFont(ofSize: 22, weight: .bold)
         lblPhaseCD.textColor = UIColor(hex: "#ff6b6b"); lblPhaseCD.text = "--:--"
@@ -106,9 +108,20 @@ class DashboardViewController: UIViewController {
          phaseDot, lblPhaseName, lblPhaseRes, lblPhaseIdx,
          lblCDTitle, lblPhaseCD, lblRemainTitle, lblRemain].forEach { topBar.addSubview($0) }
 
+        // In free mode hide phase/remain sections
+        let phaseViews: [UIView] = [phaseDot, lblPhaseName, lblPhaseRes,
+                                    lblPhaseIdx, lblCDTitle, lblPhaseCD,
+                                    lblRemainTitle, lblRemain]
+        if plan.isFree { phaseViews.forEach { $0.isHidden = true } }
+
         for _ in 0..<4 {
             let d = UIView(); d.backgroundColor = UIColor(hex: "#2a3a4a")
             topBar.addSubview(d); dividers.append(d)
+        }
+        if plan.isFree {
+            dividers[1].isHidden = true
+            dividers[2].isHidden = true
+            dividers[3].isHidden = true
         }
 
         [boxSPM, boxSpeed, boxPower, boxSteps, boxPace, boxCal].forEach { view.addSubview($0) }
@@ -116,29 +129,33 @@ class DashboardViewController: UIViewController {
         // Stop button
         stopHint.text = "长按 3 秒停止"
         stopHint.font = UIFont.systemFont(ofSize: 9)
-        stopHint.textColor = UIColor(hex: "#555555")
-        stopHint.textAlignment = .center
+        stopHint.textColor = UIColor(hex: "#555555"); stopHint.textAlignment = .center
 
         stopBtn.layer.cornerRadius = 23
         stopBtn.layer.borderColor  = UIColor(hex: "#ff6b6b").cgColor
         stopBtn.layer.borderWidth  = 2.5
         stopBtn.backgroundColor    = UIColor(hex: "#ff6b6b").withAlphaComponent(0.12)
-        stopBtn.setTitle("⏹", for: .normal)
-        stopBtn.titleLabel?.font = UIFont.systemFont(ofSize: 16)
 
-        // 进度环
-        stopRing.fillColor    = UIColor.clear.cgColor
-        stopRing.strokeColor  = UIColor(hex: "#ff6b6b").cgColor
-        stopRing.lineWidth    = 3
-        stopRing.lineCap      = .round
-        stopRing.strokeEnd    = 0
+        // 红色实心方块图标
+        let squareView = UIView()
+        squareView.backgroundColor    = UIColor(hex: "#ff6b6b")
+        squareView.layer.cornerRadius = 3
+        squareView.isUserInteractionEnabled = false
+        squareView.frame = CGRect(x: 14, y: 14, width: 18, height: 18)
+        stopBtn.addSubview(squareView)
+
+        stopRing.fillColor   = UIColor.clear.cgColor
+        stopRing.strokeColor = UIColor(hex: "#ff6b6b").cgColor
+        stopRing.lineWidth   = 3
+        stopRing.lineCap     = .round
+        stopRing.strokeEnd   = 0
         stopBtn.layer.addSublayer(stopRing)
 
         stopBtn.addTarget(self, action: #selector(stopTouchDown),  for: .touchDown)
-        stopBtn.addTarget(self, action: #selector(stopTouchUp),    for: [.touchUpInside, .touchUpOutside, .touchCancel])
+        stopBtn.addTarget(self, action: #selector(stopTouchUp),
+                          for: [.touchUpInside, .touchUpOutside, .touchCancel])
 
-        stopWrap.addSubview(stopHint)
-        stopWrap.addSubview(stopBtn)
+        stopWrap.addSubview(stopHint); stopWrap.addSubview(stopBtn)
         view.addSubview(stopWrap)
     }
 
@@ -151,10 +168,8 @@ class DashboardViewController: UIViewController {
 
     private func layoutAll() {
         let safe = view.safeAreaInsets
-        let p: CGFloat = 8
-        let bottomPad: CGFloat = 28
-        let x0 = safe.left + p
-        let y0 = safe.top + p
+        let p: CGFloat = 8; let bottomPad: CGFloat = 28
+        let x0 = safe.left + p; let y0 = safe.top + p
         let W  = view.bounds.width  - safe.left - safe.right - 2*p
         let H  = view.bounds.height - safe.top  - safe.bottom
 
@@ -165,8 +180,6 @@ class DashboardViewController: UIViewController {
         let gridY = y0 + topH + p
         let gridH = H - topH - p - p - bottomPad
         let rowH  = (gridH - p) / 2
-
-        // Stop button takes up one "column" width on right
         let stopSize: CGFloat = 46
         let colW = (W - 2*p - stopSize - p) / 3
 
@@ -174,24 +187,22 @@ class DashboardViewController: UIViewController {
         for (ri, row) in rows.enumerated() {
             let rowY = gridY + CGFloat(ri) * (rowH + p)
             for (ci, box) in row.enumerated() {
-                let colX = x0 + CGFloat(ci) * (colW + p)
-                box.frame = CGRect(x: colX, y: rowY, width: colW, height: rowH)
+                box.frame = CGRect(x: x0 + CGFloat(ci) * (colW + p), y: rowY, width: colW, height: rowH)
             }
         }
 
-        // Stop wrap: vertically centered in grid area, right side
-        let wrapW: CGFloat = stopSize + 4
-        let wrapH: CGFloat = stopSize + 20
-        let wrapX = x0 + W - wrapW
-        let wrapY = gridY + (gridH - wrapH) / 2
-        stopWrap.frame = CGRect(x: wrapX, y: wrapY, width: wrapW, height: wrapH)
+        let wrapW: CGFloat = stopSize + 4; let wrapH: CGFloat = stopSize + 20
+        stopWrap.frame = CGRect(x: x0 + W - wrapW, y: gridY + (gridH - wrapH)/2, width: wrapW, height: wrapH)
         stopHint.frame = CGRect(x: 0, y: 0, width: wrapW, height: 14)
         stopBtn.frame  = CGRect(x: (wrapW - stopSize)/2, y: 16, width: stopSize, height: stopSize)
 
-        // Stop ring path
+        // Position square icon in center of button
+        if let sq = stopBtn.subviews.first {
+            sq.frame = CGRect(x: (stopSize - 18)/2, y: (stopSize - 18)/2, width: 18, height: 18)
+        }
+
         let center = CGPoint(x: stopSize/2, y: stopSize/2)
-        let radius = stopSize/2 - 3
-        let path = UIBezierPath(arcCenter: center, radius: radius,
+        let path = UIBezierPath(arcCenter: center, radius: stopSize/2 - 3,
                                 startAngle: -.pi/2, endAngle: 1.5 * .pi, clockwise: true)
         stopRing.path   = path.cgPath
         stopRing.frame  = stopBtn.bounds
@@ -200,8 +211,24 @@ class DashboardViewController: UIViewController {
 
     private func layoutTopBar(bounds: CGRect) {
         let W = bounds.width; let H = bounds.height; let p: CGFloat = 10
-        let w0: CGFloat = 76; let w1: CGFloat = 66; let w3: CGFloat = 76; let w4: CGFloat = 72
         let dW: CGFloat = 1
+
+        if plan.isFree {
+            // 自由模式：只显示已用时 | 阻力
+            let w0: CGFloat = 100; let w1: CGFloat = 100
+            var x = p
+            lblElapsedTitle.frame = CGRect(x: x, y: 6,       width: w0, height: 12)
+            lblElapsed.frame      = CGRect(x: x, y: H/2 - 2, width: w0, height: 26)
+            x += w0 + p
+            dividers[0].frame = CGRect(x: x, y: 8, width: dW, height: H-16); x += dW + p
+            lblResistTitle.frame = CGRect(x: x, y: 6, width: w1, height: 12)
+            lblResistTitle.textAlignment = .center
+            lblResist.frame = CGRect(x: x, y: H/2 - 2, width: w1, height: 24)
+            dividers[1].isHidden = true; dividers[2].isHidden = true; dividers[3].isHidden = true
+            return
+        }
+
+        let w0: CGFloat = 76; let w1: CGFloat = 66; let w3: CGFloat = 76; let w4: CGFloat = 72
         let phaseW = W - w0 - w1 - w3 - w4 - 4*(dW + p*2) - 2*p
         var x = p
 
@@ -216,10 +243,10 @@ class DashboardViewController: UIViewController {
         x += w1 + p
         dividers[1].frame = CGRect(x: x, y: 8, width: dW, height: H-16); x += dW + p
 
-        phaseDot.frame     = CGRect(x: x,     y: (H-8)/2 - 8,  width: 8,          height: 8)
-        lblPhaseName.frame = CGRect(x: x+12,  y: (H-16)/2 - 8, width: phaseW-14,  height: 16)
-        lblPhaseRes.frame  = CGRect(x: x+12,  y: (H-16)/2 + 10, width: 30,        height: 14)
-        lblPhaseIdx.frame  = CGRect(x: x+46,  y: (H-16)/2 + 10, width: phaseW-50, height: 14)
+        phaseDot.frame     = CGRect(x: x,    y: (H-8)/2 - 8,   width: 8,          height: 8)
+        lblPhaseName.frame = CGRect(x: x+12, y: (H-16)/2 - 8,  width: phaseW-14,  height: 16)
+        lblPhaseRes.frame  = CGRect(x: x+12, y: (H-16)/2 + 10, width: 30,         height: 14)
+        lblPhaseIdx.frame  = CGRect(x: x+46, y: (H-16)/2 + 10, width: phaseW-50,  height: 14)
         x += phaseW + p
         dividers[2].frame = CGRect(x: x, y: 8, width: dW, height: H-16); x += dW + p
 
@@ -234,7 +261,7 @@ class DashboardViewController: UIViewController {
         lblRemain.frame = CGRect(x: x, y: H/2 - 2, width: w4, height: 24)
     }
 
-    // MARK: - Stop Button Logic
+    // MARK: - Stop Button
 
     @objc private func stopTouchDown() {
         stopStart = Date()
@@ -243,46 +270,36 @@ class DashboardViewController: UIViewController {
         }
     }
 
-    @objc private func stopTouchUp() {
-        cancelStopTimer()
-    }
+    @objc private func stopTouchUp() { cancelStopTimer() }
 
     private func updateStopProgress() {
         guard let start = stopStart else { return }
         let progress = min(Date().timeIntervalSince(start) / holdDuration, 1.0)
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        stopRing.strokeEnd = CGFloat(progress)
-        CATransaction.commit()
-        if progress >= 1.0 {
-            cancelStopTimer()
-            triggerStop()
-        }
+        CATransaction.begin(); CATransaction.setDisableActions(true)
+        stopRing.strokeEnd = CGFloat(progress); CATransaction.commit()
+        if progress >= 1.0 { cancelStopTimer(); triggerStop() }
     }
 
     private func cancelStopTimer() {
         stopTimer?.invalidate(); stopTimer = nil; stopStart = nil
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        stopRing.strokeEnd = 0
-        CATransaction.commit()
+        CATransaction.begin(); CATransaction.setDisableActions(true)
+        stopRing.strokeEnd = 0; CATransaction.commit()
     }
 
     private func triggerStop() {
-        engine.stop()
-        showSummary()
+        engine.stop(); showSummary()
     }
 
     // MARK: - Summary
 
     private func showSummary() {
-        let history = engine.powerHistory
-        let avgPwr = history.isEmpty ? 0 : history.reduce(0, +) / Double(history.count)
-        let spmHist = engine.spmHistory
-        let nonZeroSpm = spmHist.filter { $0 > 0 }
-        let avgSpm = nonZeroSpm.isEmpty ? 0 : nonZeroSpm.reduce(0, +) / Double(nonZeroSpm.count)
-
+        guard presentedViewController == nil else { return }
+        let spmHist    = engine.spmHistory.filter { $0 > 0 }
+        let avgSpm     = spmHist.isEmpty ? 0 : spmHist.reduce(0, +) / Double(spmHist.count)
+        let pwrHist    = engine.powerHistory.filter { $0 > 0 }
+        let avgPwr     = pwrHist.isEmpty ? 0 : pwrHist.reduce(0, +) / Double(pwrHist.count)
         let stats = WorkoutStats(
+            planName:       plan.name,
             elapsedSeconds: engine.workoutElapsed,
             totalSteps:     engine.totalSteps,
             totalDistM:     engine.totalDistM,
@@ -299,27 +316,27 @@ class DashboardViewController: UIViewController {
     // MARK: - Refresh
 
     private func refreshUI() {
-        let e = engine
+        let e     = engine
         let spm   = e.spmHistory.last   ?? 0
         let spd   = e.speedHistory.last ?? 0
         let pwr   = e.powerHistory.last ?? 0
         let cal   = e.calHistory.last   ?? 0
         let steps = e.stepsHistory.last ?? 0
 
-        let totalRemain = max(0.0, Double(kTotalSecs) - e.workoutElapsed)
-        let phaseRemain = max(0.0, Double(e.phaseTotal) - e.phaseElapsed)
+        lblElapsed.text = formatTime(e.workoutElapsed)
+        lblResist.text  = "Lv \(e.currentData.currentResistance)"
 
-        lblElapsed.text   = formatTime(e.workoutElapsed)
-        lblResist.text    = "Lv \(e.currentData.currentResistance)"
-        lblRemain.text    = formatTime(totalRemain)
-        lblPhaseName.text = e.phaseName.isEmpty ? "--" : e.phaseName
-        lblPhaseRes.text  = "R\(e.phaseResist)"
-        lblPhaseCD.text   = formatTime(phaseRemain)
-        lblPhaseIdx.text  = "\(e.phaseIndex + 1) / \(workoutPlan.count)"
-
-        if let color = resistanceColors[e.phaseResist] {
-            phaseDot.backgroundColor = color
-            lblPhaseRes.textColor    = color
+        if !plan.isFree {
+            let totalRemain = max(0.0, Double(plan.totalSeconds) - e.workoutElapsed)
+            let phaseRemain = max(0.0, Double(e.phaseTotal) - e.phaseElapsed)
+            lblRemain.text    = formatTime(totalRemain)
+            lblPhaseName.text = e.phaseName.isEmpty ? "--" : e.phaseName
+            lblPhaseRes.text  = "R\(e.phaseResist)"
+            lblPhaseCD.text   = formatTime(phaseRemain)
+            lblPhaseIdx.text  = "\(e.phaseIndex + 1) / \(plan.segments.count)"
+            if let color = resistanceColors[e.phaseResist] {
+                phaseDot.backgroundColor = color; lblPhaseRes.textColor = color
+            }
         }
 
         boxSPM.setValue(String(Int(spm)))
@@ -331,8 +348,7 @@ class DashboardViewController: UIViewController {
     }
 
     private func formatInt(_ n: Int) -> String {
-        let nf = NumberFormatter()
-        nf.numberStyle = .decimal
+        let nf = NumberFormatter(); nf.numberStyle = .decimal
         return nf.string(from: NSNumber(value: n)) ?? "\(n)"
     }
 }
@@ -343,12 +359,11 @@ extension DashboardViewController: WorkoutEngineDelegate {
 
     func engineDidConnect() {
         lblElapsed.text = "00:00"
-        lblRemain.text  = formatTime(Double(kTotalSecs))
+        if !plan.isFree { lblRemain.text = formatTime(Double(plan.totalSeconds)) }
     }
 
     func engineDidDisconnect() {
-        lblElapsed.text      = "ERR"
-        lblElapsed.textColor = UIColor(hex: "#ff6b6b")
+        lblElapsed.text = "ERR"; lblElapsed.textColor = UIColor(hex: "#ff6b6b")
     }
 
     func engineDidTick() {
@@ -360,16 +375,13 @@ extension DashboardViewController: WorkoutEngineDelegate {
 // MARK: - Helpers
 
 private func makeLabel(_ text: String, size: CGFloat, color: String) -> UILabel {
-    let l = UILabel()
-    l.text = text; l.font = UIFont.systemFont(ofSize: size)
-    l.textColor = UIColor(hex: color)
-    return l
+    let l = UILabel(); l.text = text; l.font = UIFont.systemFont(ofSize: size)
+    l.textColor = UIColor(hex: color); return l
 }
 
 // MARK: - MetricBox
 
 private class MetricBox: UIView {
-
     private let labelLbl = UILabel()
     private let valueLbl = UILabel()
     private let unitLbl  = UILabel()
@@ -377,18 +389,14 @@ private class MetricBox: UIView {
     init(label: String, unit: String, color: UIColor) {
         super.init(frame: .zero)
         backgroundColor = UIColor(hex: "#16213e"); layer.cornerRadius = 12
-
         labelLbl.text = label; labelLbl.font = UIFont.systemFont(ofSize: 11)
         labelLbl.textColor = UIColor(hex: "#888888"); labelLbl.textAlignment = .center
-
         valueLbl.text = "--"
         valueLbl.font = UIFont.monospacedDigitSystemFont(ofSize: 40, weight: .bold)
         valueLbl.textColor = color; valueLbl.textAlignment = .center
         valueLbl.adjustsFontSizeToFitWidth = true; valueLbl.minimumScaleFactor = 0.5
-
         unitLbl.text = unit; unitLbl.font = UIFont.systemFont(ofSize: 10)
         unitLbl.textColor = UIColor(hex: "#666666"); unitLbl.textAlignment = .center
-
         [labelLbl, valueLbl, unitLbl].forEach { addSubview($0) }
     }
     required init?(coder: NSCoder) { fatalError() }

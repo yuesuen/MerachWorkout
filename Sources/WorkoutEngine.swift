@@ -24,6 +24,9 @@ class WorkoutEngine: NSObject {
 
     weak var delegate: WorkoutEngineDelegate?
 
+    // ── 当前计划 ──────────────────────────────
+    private(set) var plan: WorkoutPlanConfig = allWorkoutPlans[0]
+
     // ── 连接状态 ──────────────────────────────
     private(set) var isConnected    = false
     private(set) var workoutStarted = false
@@ -70,13 +73,9 @@ class WorkoutEngine: NSObject {
 
     // MARK: - 启动
 
-    func start(demo: Bool = false) {
-        demoMode = demo
-        if demo {
-            runDemo()
-        } else {
-            central = CBCentralManager(delegate: self, queue: .main)
-        }
+    func start(plan: WorkoutPlanConfig) {
+        self.plan = plan
+        central = CBCentralManager(delegate: self, queue: .main)
     }
 
     func stop() {
@@ -128,18 +127,19 @@ class WorkoutEngine: NSObject {
 
     private func startWorkout() {
         workoutStarted = true
+        guard !plan.isFree else { return }   // 自由模式不执行计划
         advanceToPhase(0)
     }
 
     private func advanceToPhase(_ index: Int) {
-        guard index < workoutPlan.count else {
+        guard index < plan.segments.count else {
             workoutDone = true
             phaseTimer?.invalidate(); phaseTimer = nil
             return
         }
         phaseTimer?.invalidate()
 
-        let seg = workoutPlan[index]
+        let seg = plan.segments[index]
         phaseIndex   = index
         phaseName    = seg.name
         phaseResist  = seg.resistance
