@@ -46,17 +46,28 @@ private let _plan1Segs: [WorkoutSegment] = {
     return s
 }()
 
-// MARK: - 计划2：轻松节奏（入门计划）
-// 热身30s · R5/10/20/20/25 各6分钟 · 放松2分钟
-private let _p2Res  = [5, 10, 20, 20, 25]
-private let _p2Dur  = 6 * 60  // 360s
+// MARK: - 计划2：爬坡保持（入门计划）
+// 爬坡5分钟 R1→20（每步+3）· 保持R20 25分钟 · 放松2分钟 R20→1（每步-3）
+private let _p2RampRes  = [1, 4, 7, 10, 13, 16, 19, 20]   // 8步
+private let _p2RampBase = (5 * 60) / _p2RampRes.count      // 37
+private let _p2RampRem  = (5 * 60) - _p2RampBase * _p2RampRes.count  // 4
+
+private let _p2CoolRes  = [20, 17, 14, 11, 8, 5, 2, 1]    // 8步
+private let _p2CoolBase = (2 * 60) / _p2CoolRes.count      // 15
 
 private let _plan2Segs: [WorkoutSegment] = {
-    var s = [WorkoutSegment(name: "热身", resistance: 5, duration: 30)]
-    for (i, r) in _p2Res.enumerated() {
-        s.append(WorkoutSegment(name: "段\(i+1)", resistance: r, duration: _p2Dur))
+    var s: [WorkoutSegment] = []
+    // 爬坡（前4步38s，后4步37s）
+    for (i, r) in _p2RampRes.enumerated() {
+        s.append(WorkoutSegment(name: "爬坡\(i+1)", resistance: r,
+                                duration: _p2RampBase + (i < _p2RampRem ? 1 : 0)))
     }
-    s.append(WorkoutSegment(name: "放松", resistance: 5, duration: 2 * 60))
+    // 保持 R20 25分钟
+    s.append(WorkoutSegment(name: "保持", resistance: 20, duration: 25 * 60))
+    // 放松（每步15s，逐步降回R1）
+    for (i, r) in _p2CoolRes.enumerated() {
+        s.append(WorkoutSegment(name: "放松\(i+1)", resistance: r, duration: _p2CoolBase))
+    }
     return s
 }()
 
@@ -68,8 +79,8 @@ let allWorkoutPlans: [WorkoutPlanConfig] = [
         mode: .structured, segments: _plan1Segs
     ),
     WorkoutPlanConfig(
-        id: 1, name: "轻松节奏", badge: "入门计划", colorHex: "#00ff88",
-        description: "热身30秒 · R5→10→20→20→25 五段 · 放松2分钟",
+        id: 1, name: "爬坡保持", badge: "入门计划", colorHex: "#00ff88",
+        description: "R1→20 爬坡5分钟 · 保持R20 25分钟 · 放松2分钟降回R1",
         mode: .structured, segments: _plan2Segs
     ),
     WorkoutPlanConfig(
@@ -79,16 +90,22 @@ let allWorkoutPlans: [WorkoutPlanConfig] = [
     ),
 ]
 
-// MARK: - 阻力颜色
-let resistanceColors: [Int: UIColor] = [
-    5:  UIColor(hex: "#4caf50"),
-    10: UIColor(hex: "#8bc34a"),
-    15: UIColor(hex: "#ffeb3b"),
-    20: UIColor(hex: "#ff9800"),
-    22: UIColor(hex: "#ff9800"),
-    25: UIColor(hex: "#ff5722"),
-    30: UIColor(hex: "#f44336"),
-]
+// MARK: - 阻力颜色（按阻力大小渐变：绿→黄→橙→红）
+let resistanceColors: [Int: UIColor] = {
+    var map: [Int: UIColor] = [:]
+    for r in 1...32 {
+        let t = Double(r - 1) / 31.0   // 0.0 (R1) → 1.0 (R32)
+        let color: UIColor
+        switch t {
+        case 0..<0.25:  color = UIColor(hex: "#4caf50")   // 绿
+        case 0.25..<0.5: color = UIColor(hex: "#ffeb3b")  // 黄
+        case 0.5..<0.75: color = UIColor(hex: "#ff9800")  // 橙
+        default:         color = UIColor(hex: "#f44336")  // 红
+        }
+        map[r] = color
+    }
+    return map
+}()
 
 // MARK: - 格式化工具
 func formatTime(_ seconds: Double) -> String {

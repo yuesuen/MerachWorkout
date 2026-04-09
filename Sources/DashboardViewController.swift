@@ -57,8 +57,14 @@ class DashboardViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        UIApplication.shared.isIdleTimerDisabled = true   // 训练中保持常亮
         buildUI()
         engine.delegate = self
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        UIApplication.shared.isIdleTimerDisabled = false  // 离开训练页恢复自动熄屏
     }
 
     override var prefersStatusBarHidden: Bool { return true }
